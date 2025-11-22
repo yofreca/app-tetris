@@ -20,6 +20,11 @@ class TetrisViewModel : ViewModel() {
 
     private var gameLoopJob: Job? = null
 
+    companion object {
+        const val LINE_CLEAR_ANIMATION_DURATION = 300L
+        const val HARD_DROP_ANIMATION_DURATION = 200L
+    }
+
     init {
         startGame()
     }
@@ -52,7 +57,14 @@ class TetrisViewModel : ViewModel() {
     }
 
     fun moveDown() {
-        _gameState.update { TetrisGameLogic.movePiece(it, MoveDirection.DOWN) }
+        _gameState.update {
+            val newState = TetrisGameLogic.movePiece(it, MoveDirection.DOWN)
+            // Check for line clear animation
+            if (newState.lineClearAnimation != null) {
+                scheduleLineClearAnimationEnd()
+            }
+            newState
+        }
     }
 
     fun rotate() {
@@ -60,7 +72,30 @@ class TetrisViewModel : ViewModel() {
     }
 
     fun hardDrop() {
-        _gameState.update { TetrisGameLogic.hardDrop(it) }
+        _gameState.update {
+            val newState = TetrisGameLogic.hardDrop(it)
+            newState
+        }
+        // Schedule animation cleanup
+        scheduleHardDropAnimationEnd()
+        // Also check for line clear animation
+        if (_gameState.value.lineClearAnimation != null) {
+            scheduleLineClearAnimationEnd()
+        }
+    }
+
+    private fun scheduleLineClearAnimationEnd() {
+        viewModelScope.launch {
+            delay(LINE_CLEAR_ANIMATION_DURATION)
+            _gameState.update { it.copy(lineClearAnimation = null) }
+        }
+    }
+
+    private fun scheduleHardDropAnimationEnd() {
+        viewModelScope.launch {
+            delay(HARD_DROP_ANIMATION_DURATION)
+            _gameState.update { it.copy(hardDropAnimation = null) }
+        }
     }
 
     private fun startGameLoop() {
@@ -76,7 +111,12 @@ class TetrisViewModel : ViewModel() {
 
                 _gameState.update { currentState ->
                     if (!currentState.isGameOver && !currentState.isPaused) {
-                        TetrisGameLogic.movePiece(currentState, MoveDirection.DOWN)
+                        val newState = TetrisGameLogic.movePiece(currentState, MoveDirection.DOWN)
+                        // Check for line clear animation
+                        if (newState.lineClearAnimation != null && currentState.lineClearAnimation == null) {
+                            scheduleLineClearAnimationEnd()
+                        }
+                        newState
                     } else {
                         currentState
                     }

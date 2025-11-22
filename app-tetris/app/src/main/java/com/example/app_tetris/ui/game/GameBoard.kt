@@ -1,5 +1,7 @@
 package com.example.app_tetris.ui.game
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -7,6 +9,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -18,8 +25,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.example.app_tetris.game.TetrisGameLogic
 import com.example.app_tetris.model.GameState
+import com.example.app_tetris.model.HardDropAnimation
+import com.example.app_tetris.model.LineClearAnimation
 import com.example.app_tetris.model.Tetromino
-import com.example.app_tetris.ui.theme.GhostPieceColor
 import com.example.app_tetris.ui.theme.NeonBoardBackground
 import com.example.app_tetris.ui.theme.NeonBorderGlow
 import com.example.app_tetris.ui.theme.NeonGridLine
@@ -30,6 +38,38 @@ fun GameBoard(
     modifier: Modifier = Modifier
 ) {
     val aspectRatio = GameState.BOARD_WIDTH.toFloat() / GameState.BOARD_HEIGHT.toFloat()
+
+    // Line clear animation
+    var lineClearProgress by remember { mutableFloatStateOf(0f) }
+    val animatedLineClearProgress by animateFloatAsState(
+        targetValue = lineClearProgress,
+        animationSpec = tween(durationMillis = 300),
+        label = "lineClear"
+    )
+
+    LaunchedEffect(gameState.lineClearAnimation) {
+        if (gameState.lineClearAnimation != null) {
+            lineClearProgress = 1f
+        } else {
+            lineClearProgress = 0f
+        }
+    }
+
+    // Hard drop animation
+    var hardDropProgress by remember { mutableFloatStateOf(0f) }
+    val animatedHardDropProgress by animateFloatAsState(
+        targetValue = hardDropProgress,
+        animationSpec = tween(durationMillis = 200),
+        label = "hardDrop"
+    )
+
+    LaunchedEffect(gameState.hardDropAnimation) {
+        if (gameState.hardDropAnimation != null) {
+            hardDropProgress = 1f
+        } else {
+            hardDropProgress = 0f
+        }
+    }
 
     Box(
         modifier = modifier
@@ -100,6 +140,26 @@ fun GameBoard(
                 }
             }
 
+            // Draw line clear animation (flash effect)
+            gameState.lineClearAnimation?.let { animation ->
+                drawLineClearEffect(
+                    animation = animation,
+                    progress = animatedLineClearProgress,
+                    cellWidth = cellWidth,
+                    cellHeight = cellHeight
+                )
+            }
+
+            // Draw hard drop animation (impact effect)
+            gameState.hardDropAnimation?.let { animation ->
+                drawHardDropEffect(
+                    animation = animation,
+                    progress = animatedHardDropProgress,
+                    cellWidth = cellWidth,
+                    cellHeight = cellHeight
+                )
+            }
+
             // Draw ghost piece with neon outline
             if (!gameState.isGameOver && !gameState.isPaused) {
                 val ghostY = TetrisGameLogic.getGhostY(gameState)
@@ -150,6 +210,105 @@ fun GameBoard(
                 style = Stroke(width = 2f)
             )
         }
+    }
+}
+
+private fun DrawScope.drawLineClearEffect(
+    animation: LineClearAnimation,
+    progress: Float,
+    cellWidth: Float,
+    cellHeight: Float
+) {
+    // Flash effect for cleared rows
+    val flashAlpha = if (progress < 0.5f) {
+        progress * 2f // Fade in
+    } else {
+        (1f - progress) * 2f // Fade out
+    }
+
+    for (row in animation.clearedRows) {
+        // White flash across the row
+        drawRect(
+            color = Color.White.copy(alpha = flashAlpha * 0.8f),
+            topLeft = Offset(0f, row * cellHeight),
+            size = Size(size.width, cellHeight)
+        )
+
+        // Cyan glow effect
+        drawRect(
+            color = Color(0xFF00FFFF).copy(alpha = flashAlpha * 0.5f),
+            topLeft = Offset(0f, row * cellHeight - 4f),
+            size = Size(size.width, cellHeight + 8f)
+        )
+
+        // Expanding horizontal lines
+        val expandWidth = size.width * progress
+        val centerX = size.width / 2
+        drawLine(
+            color = Color.White.copy(alpha = flashAlpha),
+            start = Offset(centerX - expandWidth / 2, row * cellHeight + cellHeight / 2),
+            end = Offset(centerX + expandWidth / 2, row * cellHeight + cellHeight / 2),
+            strokeWidth = 3f
+        )
+    }
+}
+
+private fun DrawScope.drawHardDropEffect(
+    animation: HardDropAnimation,
+    progress: Float,
+    cellWidth: Float,
+    cellHeight: Float
+) {
+    // Impact wave effect
+    val waveAlpha = (1f - progress) * 0.6f
+    val waveExpand = progress * 20f
+
+    for ((col, row) in animation.piecePositions) {
+        val centerX = col * cellWidth + cellWidth / 2
+        val centerY = row * cellHeight + cellHeight / 2
+
+        // Expanding glow ring
+        drawCircle(
+            color = animation.color.copy(alpha = waveAlpha),
+            radius = cellWidth / 2 + waveExpand,
+            center = Offset(centerX, centerY),
+            style = Stroke(width = 3f - progress * 2f)
+        )
+
+        // Inner bright flash
+        if (progress < 0.3f) {
+            drawCircle(
+                color = Color.White.copy(alpha = (0.3f - progress) * 2f),
+                radius = cellWidth / 3,
+                center = Offset(centerX, centerY)
+            )
+        }
+    }
+
+    // Vertical impact lines going down
+    val lineAlpha = (1f - progress) * 0.4f
+    val lineLength = progress * cellHeight * 3
+
+    for ((col, row) in animation.piecePositions) {
+        val x = col * cellWidth + cellWidth / 2
+
+        // Draw trailing lines below impact point
+        drawLine(
+            color = animation.color.copy(alpha = lineAlpha),
+            start = Offset(x, row * cellHeight + cellHeight),
+            end = Offset(x, row * cellHeight + cellHeight + lineLength),
+            strokeWidth = 2f
+        )
+    }
+
+    // Screen shake simulation via slight offset glow
+    if (progress < 0.2f) {
+        val shakeOffset = (0.2f - progress) * 4f
+        drawRect(
+            color = Color.White.copy(alpha = (0.2f - progress) * 0.3f),
+            topLeft = Offset(-shakeOffset, -shakeOffset),
+            size = Size(size.width + shakeOffset * 2, size.height + shakeOffset * 2)
+        )
     }
 }
 

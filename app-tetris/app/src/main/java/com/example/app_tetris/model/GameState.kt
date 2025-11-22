@@ -13,7 +13,10 @@ data class GameState(
     val level: Int = 1,
     val linesCleared: Int = 0,
     val isGameOver: Boolean = false,
-    val isPaused: Boolean = false
+    val isPaused: Boolean = false,
+    // Animation states
+    val lineClearAnimation: LineClearAnimation? = null,
+    val hardDropAnimation: HardDropAnimation? = null
 ) {
     companion object {
         const val BOARD_WIDTH = 10
@@ -28,3 +31,15 @@ data class GameState(
 enum class MoveDirection {
     LEFT, RIGHT, DOWN
 }
+
+data class LineClearAnimation(
+    val clearedRows: List<Int>,
+    val startTime: Long = System.currentTimeMillis()
+)
+
+data class HardDropAnimation(
+    val impactY: Int,
+    val piecePositions: List<Pair<Int, Int>>,
+    val color: Color,
+    val startTime: Long = System.currentTimeMillis()
+)
