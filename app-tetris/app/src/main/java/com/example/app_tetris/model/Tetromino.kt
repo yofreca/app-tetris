@@ -4,7 +4,8 @@ import androidx.compose.ui.graphics.Color
 
 enum class Tetromino(
     val shapes: List<List<List<Int>>>,
-    val color: Color
+    val color: Color,
+    val glowColor: Color
 ) {
     I(
         shapes = listOf(
@@ -33,7 +34,8 @@ enum class Tetromino(
                 listOf(0, 1, 0, 0)
             )
         ),
-        color = Color(0xFF00FFFF) // Cyan
+        color = Color(0xFF00FFFF),
+        glowColor = Color(0x8000FFFF)
     ),
 
     O(
@@ -55,7 +57,8 @@ enum class Tetromino(
                 listOf(1, 1)
             )
         ),
-        color = Color(0xFFFFFF00) // Yellow
+        color = Color(0xFFFFFF00),
+        glowColor = Color(0x80FFFF00)
     ),
 
     T(
@@ -81,7 +84,8 @@ enum class Tetromino(
                 listOf(0, 1, 0)
             )
         ),
-        color = Color(0xFF800080) // Purple
+        color = Color(0xFFFF00FF),
+        glowColor = Color(0x80FF00FF)
     ),
 
     S(
@@ -107,7 +111,8 @@ enum class Tetromino(
                 listOf(0, 1, 0)
             )
         ),
-        color = Color(0xFF00FF00) // Green
+        color = Color(0xFF00FF66),
+        glowColor = Color(0x8000FF66)
     ),
 
     Z(
@@ -133,7 +138,8 @@ enum class Tetromino(
                 listOf(1, 0, 0)
             )
         ),
-        color = Color(0xFFFF0000) // Red
+        color = Color(0xFFFF0055),
+        glowColor = Color(0x80FF0055)
     ),
 
     J(
@@ -159,7 +165,8 @@ enum class Tetromino(
                 listOf(1, 1, 0)
             )
         ),
-        color = Color(0xFF0000FF) // Blue
+        color = Color(0xFF0066FF),
+        glowColor = Color(0x800066FF)
     ),
 
     L(
@@ -185,7 +192,8 @@ enum class Tetromino(
                 listOf(0, 1, 0)
             )
         ),
-        color = Color(0xFFFF7F00) // Orange
+        color = Color(0xFFFF6600),
+        glowColor = Color(0x80FF6600)
     );
 
     fun getShape(rotation: Int): List<List<Int>> {
@@ -194,5 +202,9 @@ enum class Tetromino(
 
     companion object {
         fun random(): Tetromino = entries.random()
+
+        fun getGlowColorForColor(color: Color): Color {
+            return entries.find { it.color == color }?.glowColor ?: Color(0x80FFFFFF)
+        }
     }
 }
